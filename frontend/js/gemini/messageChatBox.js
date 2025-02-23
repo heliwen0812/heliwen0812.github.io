@@ -585,7 +585,7 @@
           , M = "terms-of-use-accepted"
           , S = $(".wrap-terms-of-use-accepted");
         loadIndex = function() {
-            var e = this;
+            var e = 'https://gemini-free.com';
             c.focus(),
             renderMessagesOld(),
             goOur(hefe);
