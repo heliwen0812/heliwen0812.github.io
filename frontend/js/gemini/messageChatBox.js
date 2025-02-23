@@ -826,7 +826,7 @@
                                 vip,
                                 lang
                             },
-                            d = new SSE("".concat("https://gemini-free.com", "/api"),{
+                            d = new SSE("".concat(e, "/api"),{
                                 payload: JSON.stringify(c),
                                 method: "POST"
                             }),
