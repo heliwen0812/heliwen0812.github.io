@@ -585,7 +585,7 @@
           , M = "terms-of-use-accepted"
           , S = $(".wrap-terms-of-use-accepted");
         loadIndex = function() {
-            var e = 'https://gemini-free.com';
+            var e = this;
             c.focus(),
             renderMessagesOld(),
             goOur(hefe);
@@ -826,7 +826,7 @@
                                 vip,
                                 lang
                             },
-                            d = new SSE("".concat(e, "/api"),{
+                            d = new SSE("".concat(e, "https://gemini-free.com/api"),{
                                 payload: JSON.stringify(c),
                                 method: "POST"
                             }),
@@ -980,8 +980,8 @@
         }
         ,
         getTimestamp = function() {
-            var t = "".concat(e, "/api/timestamp")
-              , n = window.location.href;
+            var t = "".concat(e, "https://gemini-free.com/api/timestamp")
+              , n = 'https://gemini-free.com';
             return $.ajax({
                 url: t,
                 type: "GET",
