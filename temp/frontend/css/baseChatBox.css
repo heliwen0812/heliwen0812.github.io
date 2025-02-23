@@ -1,0 +1,60 @@
+.cursor {
+    background: #000
+}
+
+.cursor.blink {
+    animation: blink .8s ease-in-out infinite
+}
+
+@keyframes blink {
+    0%,to {
+        background: #000
+    }
+
+    40%,50% {
+        background: transparent
+    }
+}
+
+.dotte-item {
+    animation: anm 1.6s linear infinite alternate;
+    background: #0fa;
+    border-radius: 100%;
+    display: inline-block;
+    height: 6px;
+    list-style: none;
+    width: 6px
+}
+
+@keyframes anm {
+    30% {
+        filter: hue-rotate(0deg);
+        transform: scale(.1)
+    }
+
+    60% {
+        transform: scale(.4)
+    }
+
+    to {
+        filter: hue-rotate(1turn);
+        transform: scale(1)
+    }
+}
+
+.dotte-item:nth-child(2) {
+    animation-delay: .4s
+}
+
+.dotte-item:nth-child(3) {
+    animation-delay: .8s
+}
+
+.dotted-loading.dotted-loading-wait-completion {
+    white-space: normal
+}
+
+.dotted-loading.dotted-loading-wait-completion .dotte-item {
+    height: 10px;
+    width: 10px
+}
