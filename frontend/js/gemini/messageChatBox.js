@@ -981,7 +981,7 @@
         ,
         getTimestamp = function() {
             var t = "".concat("https://gemini-free.com", "/api/timestamp")
-              , n = 'https://gemini-free.com';
+              , n = 'https://heliwen0812.github.io/gemini';
             return $.ajax({
                 url: t,
                 type: "GET",
