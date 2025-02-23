@@ -826,7 +826,7 @@
                                 vip,
                                 lang
                             },
-                            d = new SSE("".concat(e, "https://gemini-free.com/api"),{
+                            d = new SSE("".concat("https://gemini-free.com", "/api"),{
                                 payload: JSON.stringify(c),
                                 method: "POST"
                             }),
@@ -980,7 +980,7 @@
         }
         ,
         getTimestamp = function() {
-            var t = "".concat(e, "https://gemini-free.com/api/timestamp")
+            var t = "".concat("https://gemini-free.com", "/api/timestamp")
               , n = 'https://gemini-free.com';
             return $.ajax({
                 url: t,
