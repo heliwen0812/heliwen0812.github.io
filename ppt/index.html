@@ -1,11 +1,3 @@
-这是修复了 `Unexpected end of JSON input` 和 `Cannot read properties of undefined (reading 'length')` 报错后的完整代码。
-
-主要的修复逻辑在于：
-1. **SSE 流解析：** 在 `onmessage` 中增加了对 `data.data` 的判空和以 `{` 开头的合法性校验。
-2. **数据防御：** 在访问 `pptxObj.pages.length` 之前，增加了对 `pptxObj` 和 `pptxObj.pages` 的非空判断。
-3. **异常捕获：** 关键的 `JSON.parse` 步骤都包裹了 `try-catch`。
-
-```html
 <!DOCTYPE html>
 <html lang="zh">
 <head>
@@ -534,4 +526,3 @@
 </script>
 </body>
 </html>
-```
