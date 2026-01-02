@@ -1,3 +1,11 @@
+这是修复了 `Unexpected end of JSON input` 和 `Cannot read properties of undefined (reading 'length')` 报错后的完整代码。
+
+主要的修复逻辑在于：
+1. **SSE 流解析：** 在 `onmessage` 中增加了对 `data.data` 的判空和以 `{` 开头的合法性校验。
+2. **数据防御：** 在访问 `pptxObj.pages.length` 之前，增加了对 `pptxObj` 和 `pptxObj.pages` 的非空判断。
+3. **异常捕获：** 关键的 `JSON.parse` 步骤都包裹了 `try-catch`。
+
+```html
 <!DOCTYPE html>
 <html lang="zh">
 <head>
@@ -276,10 +284,9 @@
     function generateOutline() {
         let subject = document.getElementById('subject').value
         if (!subject) {
-            alert(t('alert_empty_subject'))
-            return
+            alert(t('alert_empty_subject')); return;
         }
-        if (gening) return
+        if (gening) return;
         outline = ''
         gening = true
         const url = 'https://docmee.cn/api/public/ppt/generateOutline?apiKey=' + apiKey
@@ -289,30 +296,24 @@
             payload: JSON.stringify({ subject }),
         })
         source.onmessage = function (data) {
-            // --- 修复点 1: 增加安全检查 ---
             if (!data.data || !data.data.trim().startsWith('{')) return;
             try {
                 let json = JSON.parse(data.data)
                 if (json.status == -1) {
-                    gening = false
-                    alert(t('alert_outline_error') + json.error)
-                    return
+                    gening = false; alert(t('alert_outline_error') + json.error); return;
                 }
                 outline += json.text
                 document.getElementById('outline').innerHTML = window.marked.marked(outline.replaceAll('```markdown', '').replaceAll('```', ''))
                 window.scrollTo({ behavior: 'smooth', top: document.body.scrollHeight })
-            } catch (e) {
-                console.warn('解析大纲数据出错', e)
-            }
+            } catch (e) { console.error('Parse Error', e) }
         }
         source.onend = function (data) {
-            gening = false
+            gening = false;
             document.getElementById('nextTo2').style.display = 'inline-block'
             window.scrollTo(0, 0)
         }
         source.onerror = function (err) {
-            gening = false
-            alert(t('alert_outline_error'))
+            gening = false; alert(t('alert_outline_error'))
         }
         source.stream()
     }
@@ -331,14 +332,16 @@
         xhr.send(JSON.stringify({ page: 1, size: 28, filters: { type: 1 } }))
         xhr.onreadystatechange = function () {
             if (xhr.readyState === 4 && xhr.status === 200) {
-                let resp = JSON.parse(xhr.responseText)
-                let list = resp.data
-                let templates = ''
-                for (let i = 0; i < list.length; i++) {
-                    templates += `<div id="${list[i].id}" class="template" onclick="selectTemplate('${list[i].id}')"><img id="img_${list[i].id}" src="${list[i].coverUrl}" /></div>`
-                }
-                document.getElementById('templates').innerHTML = templates
-                if(list.length > 0) selectTemplate(list[0].id)
+                try {
+                    let resp = JSON.parse(xhr.responseText)
+                    let list = resp.data || []
+                    let templates = ''
+                    for (let i = 0; i < list.length; i++) {
+                        templates += `<div id="${list[i].id}" class="template" onclick="selectTemplate('${list[i].id}')"><img id="img_${list[i].id}" src="${list[i].coverUrl}" /></div>`
+                    }
+                    document.getElementById('templates').innerHTML = templates || 'No templates found'
+                    if (list.length > 0) selectTemplate(list[0].id)
+                } catch(e) { console.error(e) }
             }
         }
     }
@@ -349,10 +352,14 @@
             if (ele) ele.classList.remove('item_select')
         }
         templateId = id
+        let target = document.getElementById(id)
+        if(target) target.classList.add('item_select')
         document.getElementById('nextTo3').style.display = 'inline-block'
-        document.getElementById(id).classList.add('item_select')
-        let color = await calcSubjectColor(document.getElementById(`img_${id}`).src)
-        document.body.style.background = color
+        let img = document.getElementById(`img_${id}`)
+        if (img) {
+            let color = await calcSubjectColor(img.src)
+            document.body.style.background = color
+        }
     }
 
     function nextTo3() {
@@ -365,8 +372,7 @@
     function generatePptx() {
         var count = 0
         var timer = setInterval(() => {
-            count++
-            document.getElementById('desc').style.display = 'block'
+            count++; document.getElementById('desc').style.display = 'block'
             document.getElementById('desc_time').innerHTML = count + t('seconds')
         }, 1000)
 
@@ -376,35 +382,28 @@
             headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
             payload: JSON.stringify({ outlineMarkdown: outline, asyncGenPptx: true, templateId }),
         })
-        
         source.onmessage = function (data) {
-            // --- 修复点 2: 增加安全检查与 Try-Catch ---
             if (!data.data || !data.data.trim().startsWith('{')) return;
             try {
                 let json = JSON.parse(data.data)
                 if (json.status == -1) {
-                    alert(t('alert_ppt_error') + json.error)
-                    return
+                    alert(t('alert_ppt_error') + json.error); return;
                 }
                 if (json.pptId) {
                     document.getElementById('desc_msg').innerText = `${t('generating_progress')} ${json.current}/${json.total}，${t('generating_msg')}`
                     asyncGenPptxInfo(json.pptId)
                 }
-            } catch (e) {
-                console.warn('解析PPT生成进度出错', e)
-            }
+            } catch(e) { console.error(e) }
         }
-
-        source.onend = function (data) {
+        source.onend = function () {
             clearInterval(timer)
             document.getElementById('desc').style.display = 'none'
             document.getElementById('pptDownload').style.display = 'inline-block'
             document.getElementById('insert_element').style.display = 'inline-block'
             drawPptxList()
         }
-        source.onerror = function (err) {
-            clearInterval(timer)
-            alert(t('alert_ppt_error'))
+        source.onerror = function () {
+            clearInterval(timer); alert(t('alert_ppt_error'))
         }
         source.stream()
     }
@@ -414,24 +413,32 @@
         let url = `https://docmee.cn/api/public/ppt/asyncPptInfo?apiKey=${apiKey}&pptId=${pptxId}`
         let xhr = new XMLHttpRequest()
         xhr.open('GET', url, true)
-        xhr.send()
         xhr.onreadystatechange = function () {
             if (xhr.readyState === 4 && xhr.status === 200) {
-                let resp = JSON.parse(xhr.responseText)
-                let gzipBase64 = resp.data.pptxProperty
-                let gzip = base64js.toByteArray(gzipBase64)
-                let json = pako.ungzip(gzip, { to: 'string' })
-                pptxObj = JSON.parse(json)
-                drawPptxList(resp.data.current - 1, true)
+                try {
+                    let resp = JSON.parse(xhr.responseText)
+                    if (resp.data && resp.data.pptxProperty) {
+                        let gzip = base64js.toByteArray(resp.data.pptxProperty)
+                        let json = pako.ungzip(gzip, { to: 'string' })
+                        pptxObj = JSON.parse(json)
+                        if (pptxObj && pptxObj.pages) {
+                            drawPptxList(resp.data.current - 1, true)
+                        }
+                    }
+                } catch(e) { console.error(e) }
             }
         }
+        xhr.send()
     }
 
     async function drawPptxList(idx, asyncGen) {
+        // --- 修复点：访问 .length 之前检查 pptxObj.pages 是否存在 ---
+        if (!pptxObj || !pptxObj.pages) return;
+
         if (idx == null || document.getElementById('img_' + idx) == null) {
             let html = ''
             for (let i = 0; i < pptxObj.pages.length; i++) {
-                if (asyncGen && i > idx) break
+                if (asyncGen && i > idx) break;
                 html += `<div class="left_div_item" onclick="drawPptx(${i})">
                             <div class="left_div_item_index">${i+1}</div>
                             <canvas id="img_${i}" width="288" height="162" style="width: 144px;height: 81px;" class="left_div_item_img"></canvas>
@@ -444,42 +451,54 @@
                          </div>`
             }
             let itemList = document.getElementById('left_image_list')
-            itemList.innerHTML = html
+            if (itemList) {
+                itemList.innerHTML = html
+                if (asyncGen) itemList.scrollTop = itemList.scrollHeight
+            }
             
             for (let i = 0; i < pptxObj.pages.length; i++) {
-                let imgCanvas = document.getElementById('img_' + i)
-                if (!imgCanvas) continue
-                let _ppt2Canvas = new Ppt2Canvas(imgCanvas)
-                await _ppt2Canvas.drawPptx(pptxObj, i)
+                let canvasEle = document.getElementById('img_' + i)
+                if (canvasEle) {
+                    try {
+                        let _ppt2Canvas = new Ppt2Canvas(canvasEle)
+                        await _ppt2Canvas.drawPptx(pptxObj, i)
+                    } catch(e) { console.error(e) }
+                }
             }
         }
         drawPptx(idx || 0)
     }
 
     function drawPptx(idx) {
+        if (!pptxObj || !pptxObj.pages || !pptxObj.pages[idx]) return;
         let lastSelect = document.getElementById('img_' + selectIdx)
         if (lastSelect) lastSelect.classList.remove('item_select')
-        document.getElementById('right_canvas').style.display = 'block'
         selectIdx = idx
         let current = document.getElementById('img_' + idx)
-        if (current) current.classList.add('item_select')
+        if (current) {
+            current.classList.add('item_select')
+            if (idx === 0) current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        }
+        document.getElementById('right_canvas').style.display = 'block'
         painter.drawPptx(pptxObj, idx)
     }
 
     function downloadPptx() {
+        if (!pptxObj) return;
         let download = document.getElementById('downloadPptx')
+        const originalText = download.innerText
         download.innerText = t('rendering')
-        let animationType = document.getElementById('download_select').value
+        let ani = document.getElementById('download_select').value
         let xhr = new XMLHttpRequest()
         xhr.responseType = 'blob'
-        xhr.open('POST', `https://docmee.cn/api/public/ppt/json2ppt?animationType=${animationType||''}&apiKey=${apiKey}`)
+        xhr.open('POST', `https://docmee.cn/api/public/ppt/json2ppt?animationType=${ani||''}&apiKey=${apiKey}`)
         xhr.setRequestHeader('Content-Type', 'application/json')
         xhr.onload = function() {
-            download.innerText = t('download_pptx_btn')
+            download.innerText = originalText
             if (this.status == 200) {
                 let a = document.createElement('a')
                 a.href = window.URL.createObjectURL(this.response)
-                a.download = (document.getElementById('subject').value || 'download') + '.pptx'
+                a.download = (document.getElementById('subject').value || 'ppt') + '.pptx'
                 a.click()
             }
         }
@@ -488,18 +507,14 @@
 
     async function calcSubjectColor(src) {
         return new Promise(resolve => {
-            let img = new Image()
-            img.crossOrigin = 'anonymous'
-            img.src = src
+            let img = new Image(); img.crossOrigin = 'anonymous'; img.src = src
             img.onload = function() {
-                let canvas = document.createElement('canvas')
-                let ctx = canvas.getContext('2d')
-                canvas.width = 1; canvas.height = 1;
-                ctx.drawImage(img, 0, 0, 1, 1)
+                let cvs = document.createElement('canvas'); let ctx = cvs.getContext('2d')
+                cvs.width = 1; cvs.height = 1; ctx.drawImage(img, 0, 0, 1, 1)
                 let d = ctx.getImageData(0, 0, 1, 1).data
-                resolve(`rgba(${d[0]},${d[1]},${d[2]},0.1)`)
+                resolve(`rgba(${d[0]},${d[1]},${d[2]},0.08)`)
             }
-            img.onerror = () => resolve('#fff')
+            img.onerror = () => resolve('#f4f4f7')
         })
     }
 
@@ -509,13 +524,14 @@
     }
 
     window.addEventListener('resize', () => {
-        clearTimeout(mTimer)
-        mTimer = setTimeout(resetSize, 50)
+        clearTimeout(mTimer); mTimer = setTimeout(resetSize, 50)
     })
 
+    // Init
     document.getElementById('div1').style.display = 'block'
     applyLanguage()
     resetSize()
 </script>
 </body>
 </html>
+```
